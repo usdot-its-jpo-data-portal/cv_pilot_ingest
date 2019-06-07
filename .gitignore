@@ -1,0 +1,6 @@
+.serverless
+.DS_Store
+
+*.pyc
+*.pyo
+*.zip

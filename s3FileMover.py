@@ -44,11 +44,15 @@ class s3FileMover(object):
         return data
 
     def newline_json_rec_generator(self, data_stream):
-        for line in data_stream:
+        line = data_stream.readline()
+        while line:
             try:
-                yield json.loads(line)
+                if line.strip(b'\n'):
+                    yield json.loads(line.strip(b'\n'))
             except:
+                print(traceback.format_exc())
                 print('Invalid json line. Skipping: {}'.format(line))
+            line = data_stream.readline()
 
     def write_recs(self, recs, bucket, key):
         outbytes = "\n".join([json.dumps(i) for i in recs if i]).encode('utf-8')

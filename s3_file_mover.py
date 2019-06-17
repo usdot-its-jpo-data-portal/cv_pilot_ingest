@@ -22,11 +22,14 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)  # necessary to make sure aws is logging
 
 
-class s3FileMover(object):
+class S3FileMover(object):
 
-    def __init__(self, target_bucket):
+    def __init__(self, target_bucket, log=True):
         self.target_bucket = target_bucket
         self.s3_client = boto3.client('s3')
+        self.print_func = print
+        if log:
+            self.print_func = logger.info
 
     def get_fps_from_event(self, event):
         bucket_key_tuples = [(e['s3']['bucket']['name'], e['s3']['object']['key']) for e in event['Records']]
@@ -50,8 +53,8 @@ class s3FileMover(object):
                 if line.strip(b'\n'):
                     yield json.loads(line.strip(b'\n'))
             except:
-                print(traceback.format_exc())
-                print('Invalid json line. Skipping: {}'.format(line))
+                self.print_func(traceback.format_exc())
+                self.print_func('Invalid json line. Skipping: {}'.format(line))
             line = data_stream.readline()
 
     def write_recs(self, recs, bucket, key):
@@ -63,7 +66,7 @@ class s3FileMover(object):
 
     def move_file(self, source_bucket, source_key):
         source_path = os.path.join(source_bucket, source_key)
-        logger.info('Triggered by file: {}'.format(source_path))
+        self.print_func('Triggered by file: {}'.format(source_path))
 
         data_stream = self.get_data_stream(source_bucket, source_key)
         recs = []
@@ -73,26 +76,26 @@ class s3FileMover(object):
         if recs:
             target_key = source_key
             target_path = os.path.join(self.target_bucket, target_key)
-            logger.info('Writing {} records from {} -> {}'.format(len(recs), source_path, target_path))
+            self.print_func('Writing {} records from {} -> {}'.format(len(recs), source_path, target_path))
             self.write_recs(recs, self.target_bucket, target_key)
         else:
-            logger.info('File is empty: {}'.format(source_path))
+            self.print_func('File is empty: {}'.format(source_path))
 
-        logger.info('Delete file: {}'.format(source_path))
+        self.print_func('Delete file: {}'.format(source_path))
         self.delete_file(source_bucket, source_key)
 
 
-class cvPilotFileMover(s3FileMover):
+class CvPilotFileMover(S3FileMover):
 
-    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, **kwargs):
-        super(cvPilotFileMover, self).__init__(**kwargs)
+    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, *args, **kwargs):
+        super(CvPilotFileMover, self).__init__(*args, **kwargs)
         self.source_bucket_prefix = source_bucket_prefix
         self.source_key_prefix = source_key_prefix or ''
 
     def move_file(self, source_bucket, source_key):
         # read triggering file
         source_path = os.path.join(source_bucket, source_key)
-        logger.info('Triggered by file: {}'.format(source_path))
+        self.print_func('Triggered by file: {}'.format(source_path))
 
         # sort all files by generatedAt timestamp ymdh
         ymdh_data_dict = {}
@@ -133,11 +136,11 @@ class cvPilotFileMover(s3FileMover):
                 target_path = os.path.join(self.target_bucket, target_key)
 
                 # copy data
-                logger.info('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
+                self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
                 self.write_recs(recs, self.target_bucket, target_key)
         else:
-            logger.info('File is empty: {}'.format(source_path))
+            self.print_func('File is empty: {}'.format(source_path))
 
-        logger.info('Delete file: {}'.format(source_path))
+        self.print_func('Delete file: {}'.format(source_path))
         self.delete_file(source_bucket, source_key)
         return

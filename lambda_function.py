@@ -10,7 +10,7 @@ import os
 import traceback
 
 
-from s3FileMover import cvPilotFileMover
+from s3_file_mover import CvPilotFileMover
 
 
 logger = logging.getLogger()
@@ -25,7 +25,7 @@ SOURCE_KEY_PREFIX = os.environ['SOURCE_KEY_PREFIX'] or ""
 def lambda_handler(event, context):
     """AWS Lambda handler. """
 
-    mover = cvPilotFileMover(target_bucket=TARGET_BUCKET,
+    mover = CvPilotFileMover(target_bucket=TARGET_BUCKET,
                              source_bucket_prefix=SOURCE_BUCKET_PREFIX,
                              source_key_prefix=SOURCE_KEY_PREFIX)
 

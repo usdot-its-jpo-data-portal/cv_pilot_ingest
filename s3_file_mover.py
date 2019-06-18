@@ -87,10 +87,15 @@ class S3FileMover(object):
 
 class CvPilotFileMover(S3FileMover):
 
-    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, *args, **kwargs):
+    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, validation_queue_name=None, *args, **kwargs):
         super(CvPilotFileMover, self).__init__(*args, **kwargs)
         self.source_bucket_prefix = source_bucket_prefix
         self.source_key_prefix = source_key_prefix or ''
+        self.queue = None
+
+        if validation_queue_name:
+            sqs = boto3.resource('sqs')
+            self.queue = sqs.get_queue_by_name(QueueName=validation_queue_name)
 
     def move_file(self, source_bucket, source_key):
         # read triggering file
@@ -138,6 +143,11 @@ class CvPilotFileMover(S3FileMover):
                 # copy data
                 self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
                 self.write_recs(recs, self.target_bucket, target_key)
+                if self.queue:
+                    self.queue.send_message(
+                        MessageBody=target_path,
+                        MessageGroupId=str(uuid.uuid4())
+                    )
         else:
             self.print_func('File is empty: {}'.format(source_path))
 

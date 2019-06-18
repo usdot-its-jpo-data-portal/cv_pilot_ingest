@@ -144,8 +144,9 @@ class CvPilotFileMover(S3FileMover):
                 self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
                 self.write_recs(recs, self.target_bucket, target_key)
                 if self.queue:
+                    msg = {'filepath': target_path}
                     self.queue.send_message(
-                        MessageBody=target_path,
+                        MessageBody=json.dumps(msg),
                         MessageGroupId=str(uuid.uuid4())
                     )
         else:

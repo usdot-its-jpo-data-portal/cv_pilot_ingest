@@ -54,7 +54,7 @@ class S3FileMover(object):
                 line_stripped = line.strip(b'\n')
             else:
                 line_stripped = line.strip('\n')
-                
+
             try:
                 if line_stripped:
                     yield json.loads(line_stripped)
@@ -152,8 +152,13 @@ class CvPilotFileMover(S3FileMover):
                 self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
                 self.write_recs(recs, self.target_bucket, target_key)
                 self.print_func('File written')
-                if self.queue:
-                    msg = {'bucket': self.target_bucket, 'key': target_key}
+                if self.queue and pilot_name == 'wydot':
+                    msg = {
+                    'bucket': self.target_bucket,
+                    'key': target_key,
+                    'pilot_name': pilot_name,
+                    'message_type': message_type.lower()
+                    }
                     self.queue.send_message(
                         MessageBody=json.dumps(msg),
                         MessageGroupId=str(uuid.uuid4())

@@ -30,6 +30,7 @@ class S3FileMover(object):
         self.print_func = print
         if log:
             self.print_func = logger.info
+        self.err_lines = []
 
     def get_fps_from_event(self, event):
         bucket_key_tuples = [(e['s3']['bucket']['name'], e['s3']['object']['key']) for e in event['Records']]
@@ -49,13 +50,20 @@ class S3FileMover(object):
     def newline_json_rec_generator(self, data_stream):
         line = data_stream.readline()
         while line:
+            if type(line) == bytes:
+                line_stripped = line.strip(b'\n')
+            else:
+                line_stripped = line.strip('\n')
+                
             try:
-                if line.strip(b'\n'):
-                    yield json.loads(line.strip(b'\n'))
+                if line_stripped:
+                    yield json.loads(line_stripped)
             except:
                 self.print_func(traceback.format_exc())
                 self.print_func('Invalid json line. Skipping: {}'.format(line))
+                self.err_lines.append(line)
             line = data_stream.readline()
+
 
     def write_recs(self, recs, bucket, key):
         outbytes = "\n".join([json.dumps(i) for i in recs if i]).encode('utf-8')
@@ -143,6 +151,7 @@ class CvPilotFileMover(S3FileMover):
                 # copy data
                 self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
                 self.write_recs(recs, self.target_bucket, target_key)
+                self.print_func('File written')
                 if self.queue:
                     msg = {'bucket': self.target_bucket, 'key': target_key}
                     self.queue.send_message(
@@ -152,6 +161,9 @@ class CvPilotFileMover(S3FileMover):
         else:
             self.print_func('File is empty: {}'.format(source_path))
 
-        self.print_func('Delete file: {}'.format(source_path))
-        self.delete_file(source_bucket, source_key)
+        if len(self.err_lines) > 0:
+            self.print_func('{} lines not read in file. Keep file at: {}'.format(len(self.err_lines), source_path))
+        else:
+            self.print_func('Delete file: {}'.format(source_path))
+            self.delete_file(source_bucket, source_key)
         return

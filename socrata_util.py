@@ -53,7 +53,7 @@ class SocrataDataset(object):
             modified to align with the data type of the corresponding Socrata data set
         '''
         col_dtype_dict = col_dtype_dict or self.col_dtype_dict
-        
+
         identity = lambda x: x
         dtype_func = {'number': float, 'text': str, 'checkbox': bool}
         out = {}
@@ -61,8 +61,6 @@ class SocrataDataset(object):
             if k in float_fields and k in col_dtype_dict:
                 out[k] = float(v)
             elif k in col_dtype_dict:
-                if v:
-                    out[k] = dtype_func.get(col_dtype_dict.get(k, 'j'), identity)(v)
-                else:
-                    out[k] = v
+                if v is not None and v is not '':
+                    out[k] = dtype_func.get(col_dtype_dict.get(k, 'nonexistentKey'), identity)(v)
         return out

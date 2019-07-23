@@ -1,10 +1,5 @@
 '''
-This file contains many helper functions for the lambda functions that
-transform and load data from ITS DataHub Sandbox S3 bucket to Socrata data sets
-on data.transportation.gov.
-
-This file should be included in the zipped package for Tampa (THEA) Connected
-Vehicle Pilot lambda functions.
+Helper class for loading data to Socrata datasets on data.transportation.gov.
 
 '''
 import boto3

@@ -1,5 +1,5 @@
 """
-Move file from ingest s3 bucket to ITS DataHub sandbox s3.
+Flatten records from ITS Sandbox S3 bucket and upsert to Socrata.
 
 """
 
@@ -8,7 +8,6 @@ from __future__ import print_function
 import logging
 import os
 import traceback
-
 
 from s3_file_mover import CvPilotFileMover
 from socrata_util import SocrataDataset

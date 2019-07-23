@@ -64,7 +64,6 @@ class S3FileMover(object):
                 self.err_lines.append(line)
             line = data_stream.readline()
 
-
     def write_recs(self, recs, bucket, key):
         outbytes = "\n".join([json.dumps(i) for i in recs if i]).encode('utf-8')
         self.s3_client.put_object(Bucket=bucket, Key=key, Body=outbytes)

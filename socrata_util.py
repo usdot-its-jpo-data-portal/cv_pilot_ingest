@@ -12,13 +12,16 @@ import copy
 import itertools
 import json
 import os
+from sodapy import Socrata
 
 
 class SocrataDataset(object):
-    def __init__(self, dataset_id):
+    def __init__(self, dataset_id, socrata_client=None, socrata_params={}):
         self.dataset_id = dataset_id
-        self.socrata_client =
+        self.socrata_client = socrata_client
         self.col_dtype_dict = self.get_col_dtype_dict()
+        if not socrata_client and socrata_params:
+            self.socrata_client = Socrata(**socrata_params)
 
     def get_col_dtype_dict(self):
         '''
@@ -64,3 +67,8 @@ class SocrataDataset(object):
                 if v is not None and v is not '':
                     out[k] = dtype_func.get(col_dtype_dict.get(k, 'nonexistentKey'), identity)(v)
         return out
+
+    def clean_and_upsert(self, recs):
+        out_recs = [self.mod_dtype(r) for r in recs]
+        uploadResponse = self.socrata_client.upsert(self.dataset_id, out_recs)
+        return uploadResponse

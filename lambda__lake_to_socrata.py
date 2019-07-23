@@ -31,6 +31,18 @@ domain = SOCRATA_DOMAIN
 )
 
 
+def load_flattener(key):
+    pilot, message_type = key.split('/')[:2]
+    try:
+        mod = __import__('flattener_{}'.format(pilot))
+        flattener = getattr(mod, '{}{}Flattener'.format(pilot.title(), message_type))
+    except:
+        print('Module not found. Load generic CVP flattener.')
+        mod = __import__('flattener')
+        flattener = getattr(mod, 'CvDataFlattener')
+    return flattener
+
+
 def lambda_handler(event, context):
     """AWS Lambda handler. """
 
@@ -40,10 +52,7 @@ def lambda_handler(event, context):
     mover = CvPilotFileMover(target_bucket=TARGET_BUCKET)
 
     for bucket, key in mover.get_fps_from_event(event):
-        # load flattener
-        pilot, message_type = key.split('/')[:2]
-        mod = __import__('flattener_{}'.format(pilot))
-        flattener = getattr(mod, '{}{}Flattener'.format(pilot.title(), message_type))
+        flattener = load_flattener(key)
 
         recs = []
         err_recs = []

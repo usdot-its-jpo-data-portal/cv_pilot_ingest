@@ -14,10 +14,13 @@ class DataFlattener(object):
     def flatten_dict(self, d, json_string_fields=[]):
         def expand(key, value):
             if isinstance(value, dict):
+                # get key as value
                 if len(value.items()) == 1 and list(value.values())[0] == None:
                     return [ (key, list(value.keys())[0])]
+                # dump as json string instead of expanding further
                 elif key in json_string_fields:
                     return [(key, json.dumps(value))]
+                # expand dict
                 else:
                     return [ (key + '_' + k, v) for k, v in self.flatten_dict(value, json_string_fields).items() ]
             else:
@@ -41,7 +44,7 @@ class DataFlattener(object):
                 del out[old_f]
 
         out = {k: int(v) if k in int_fields else v for k,v in out.items()}
-        out = {k: json.dumps(v) if k in json_string_fields else v for k,v in out.items()}
+        # out = {k: json.dumps(v) if k in json_string_fields else v for k,v in out.items()}
         return out
 
     def add_enhancements(self, rec):
@@ -76,7 +79,7 @@ class CvDataFlattener(DataFlattener):
             'metadata_psid',
             'metadata_schemaVersion'
         ]
-        self.json_string_fields = []
+        self.json_string_fields = ['size']
 
     def add_enhancements(self, rec):
         metadata_generatedAt = dateutil.parser.parse(rec['metadata_generatedAt'][:23])

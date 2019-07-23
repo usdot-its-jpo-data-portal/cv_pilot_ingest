@@ -24,9 +24,9 @@ logger.setLevel(logging.INFO)  # necessary to make sure aws is logging
 
 class S3FileMover(object):
 
-    def __init__(self, target_bucket, log=True):
+    def __init__(self, target_bucket, log=True, s3_client=None):
         self.target_bucket = target_bucket
-        self.s3_client = boto3.client('s3')
+        self.s3_client = s3_client or boto3.client('s3')
         self.print_func = print
         if log:
             self.print_func = logger.info

@@ -36,7 +36,19 @@ class S3FileMover(object):
         bucket_key_tuples = [(e['s3']['bucket']['name'], e['s3']['object']['key']) for e in event['Records']]
         bucket_key_dict = {os.path.join(bucket, key): (bucket, key) for bucket, key in bucket_key_tuples}
         bucket_key_tuples_deduped = list(bucket_key_dict.values())
-        return bucket_key_tuples_deduped
+        return
+
+    def get_fps_from_prefix(self, bucket, prefix):
+        s3_source_kwargs = dict(Bucket=bucket, Prefix=prefix)
+
+        bucket_key_tuples = []
+        while True:
+            resp = self.s3_client.list_objects_v2(**s3_source_kwargs)
+            bucket_key_tuples += [(bucket, i['Key']) for i in resp['Contents']]
+            if not resp.get('NextContinuationToken'):
+                break
+            s3_source_kwargs['ContinuationToken'] = resp['NextContinuationToken']
+        return bucket_key_tuples
 
     def get_data_stream(self, bucket, key):
         obj = self.s3_client.get_object(Bucket=bucket, Key=key)

@@ -27,16 +27,17 @@ class WydotBSMFlattener(CvDataFlattener):
             ('coreData_position_latitude', 'coreData_position_lat'),
             ('coreData_position_elevation', 'coreData_elevation')
         ]
+        self.json_string_fields += ['coreData_size', 'payload_data_coreData_size']
         self.part2_rename_prefix_fields = [
             ('pathHistory', 'part2_vse_ph'),
             ('pathPrediction', 'part2_vse_pp'),
             ('classDetails', 'part2_suve_cd'),
             ('vehicleAlerts', 'part2_spve_vehalert'),
             ('description', 'part2_spve_event'),
-            ('trailers', 'part2_spve_tr')
+            ('trailers', 'part2_spve_tr'),
+            ('events', 'part2_vse_events')
         ]
         self.part2_rename_fields = [
-            ('events', 'part2_vse_events'),
             ('part2_vse_ph_crumbData', 'part2_vse_ph_crumbdata'),
             ('part2_vse_pp_radiusOfCurve', 'part2_vse_pp_radiusofcurve'),
             ('lights', 'part2_vse_lights'),
@@ -49,6 +50,7 @@ class WydotBSMFlattener(CvDataFlattener):
             ('part2_spve_tr_sspRights', 'part2_spve_tr_ssprights'),
             ('part2_spve_tr_connection', 'part2_spve_tr_conn')
         ]
+        self.part2_json_string_fields = ['events']
 
     def process(self, raw_rec):
         '''
@@ -63,7 +65,8 @@ class WydotBSMFlattener(CvDataFlattener):
         for part2_val in out['payload_data_partII']:
             part2_val_out = self.transform(part2_val['value'],
                 rename_prefix_fields=self.part2_rename_prefix_fields,
-                rename_fields=self.part2_rename_fields)
+                rename_fields=self.part2_rename_fields,
+                json_string_fields=self.part2_json_string_fields)
             out.update(part2_val_out)
         del out['payload_data_partII']
 

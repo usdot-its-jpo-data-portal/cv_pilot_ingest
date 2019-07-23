@@ -1,6 +1,6 @@
 import json
 
-from data_flattener import CvDataFlattener
+from flattener import CvDataFlattener
 
 
 class WydotBSMFlattener(CvDataFlattener):

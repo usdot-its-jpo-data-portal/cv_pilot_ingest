@@ -72,16 +72,17 @@ def lambda_handler(event, context):
         y,m,d,h = source_ymdh.strftime('%Y-%m-%d-%H').split('-')
         formatted_source_prefix = S3_SOURCE_PREFIX.format(y,m,d,h)
         bucket_key_tuples = mover.get_fps_from_prefix(bucket=S3_SOURCE_BUCKET, prefix=formatted_source_prefix)
-        logger.log('Lambda triggered by scheduled event. Retrieved {} file paths from s3://{}/{}'.format(len(bucket_key_tuples), S3_SOURCE_BUCKET, formatted_source_prefix))
+        logger.info('Lambda triggered by scheduled event. Retrieved {} file paths from s3://{}/{}'.format(len(bucket_key_tuples), S3_SOURCE_BUCKET, formatted_source_prefix))
     else:
         # s3 triggered
         overwrite = False
         workingId = SOCRATA_DATASET_ID
         bucket_key_tuples = mover.get_fps_from_event(event)
-        logger.log('Lambda triggered by uploaded s3 object. Retrieved {} file paths from event'.format(len(bucket_key_tuples)))
+        logger.info('Lambda triggered by uploaded s3 object. Retrieved {} file paths from event'.format(len(bucket_key_tuples)))
 
     for bucket, key in bucket_key_tuples:
-        flattener = load_flattener(key)
+        flattenerMod = load_flattener(key)
+        flattener = flattenerMod()
 
         recs = []
         err_recs = []
@@ -95,7 +96,7 @@ def lambda_handler(event, context):
                 err_recs.append(r)
 
         response = so_ingestor.clean_and_upsert(recs, workingId)
-        logger.log(response)
+        logger.info(response)
 
     # publish draft if this is an overwrite
     if overwrite is True:

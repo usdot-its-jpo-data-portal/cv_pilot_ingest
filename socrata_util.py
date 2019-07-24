@@ -15,9 +15,10 @@ class SocrataDataset(object):
     def __init__(self, dataset_id, socrata_client=None, socrata_params={}, float_fields=[]):
         self.dataset_id = dataset_id
         self.client = socrata_client
-        self.col_dtype_dict = self.get_col_dtype_dict()
         if not socrata_client and socrata_params:
             self.client = Socrata(**socrata_params)
+        self.col_dtype_dict = self.get_col_dtype_dict()
+        self.float_fields = float_fields
 
     def get_col_dtype_dict(self):
         '''
@@ -59,6 +60,7 @@ class SocrataDataset(object):
             elif k in col_dtype_dict:
                 if v is not None and v is not '':
                     out[k] = dtype_func.get(col_dtype_dict.get(k, 'nonexistentKey'), identity)(v)
+        out = {k:v for k,v in out.items() if k in col_dtype_dict}
         return out
 
     def create_new_draft(self):

@@ -38,16 +38,20 @@ class S3FileMover(object):
         bucket_key_tuples_deduped = list(bucket_key_dict.values())
         return bucket_key_tuples_deduped
 
-    def get_fps_from_prefix(self, bucket, prefix):
+    def get_fps_from_prefix(self, bucket, prefix, limit=0):
         s3_source_kwargs = dict(Bucket=bucket, Prefix=prefix)
 
         bucket_key_tuples = []
         while True:
             resp = self.s3_client.list_objects_v2(**s3_source_kwargs)
+            if not resp.get('Contents'):
+                return []
             bucket_key_tuples += [(bucket, i['Key']) for i in resp['Contents']]
             if not resp.get('NextContinuationToken'):
                 break
             s3_source_kwargs['ContinuationToken'] = resp['NextContinuationToken']
+            if limit > 0 and len(bucket_key_tuples) > limit:
+                break
         return bucket_key_tuples
 
     def get_data_stream(self, bucket, key):
@@ -172,7 +176,7 @@ class CvPilotFileMover(S3FileMover):
                     }
                     self.queue.send_message(
                         MessageBody=json.dumps(msg),
-                        MessageGroupId=str(uuid.uuid4())
+                        # MessageGroupId=str(uuid.uuid4())
                     )
         else:
             self.print_func('File is empty: {}'.format(source_path))

@@ -6,9 +6,15 @@ import boto3
 import copy
 import itertools
 import json
+import logging
 import os
 import requests
 from sodapy import Socrata
+import time
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  # necessary to make sure aws is logging
 
 
 class SocrataDataset(object):
@@ -17,6 +23,7 @@ class SocrataDataset(object):
         self.client = socrata_client
         if not socrata_client and socrata_params:
             self.client = Socrata(**socrata_params)
+        self.socrata_params = socrata_params
         self.col_dtype_dict = self.get_col_dtype_dict()
         self.float_fields = float_fields
 
@@ -65,17 +72,25 @@ class SocrataDataset(object):
 
     def create_new_draft(self):
         draftDataset = requests.post('https://{}/api/views/{}/publication.json'.format(self.client.domain, self.dataset_id),
-                                  auth=(self.socrata_params.username, self.socrata_params.password),
+                                  auth=(self.socrata_params['username'], self.socrata_params['password']),
                                   params={'method': 'copySchema'})
         logger.info(draftDataset.json())
         draftId = draftDataset.json()['id']
         return draftId
 
     def publish_draft(self, draftId):
+        time.sleep(5)
         publishResponse = requests.post('https://{}/api/views/{}/publication.json'.format(self.client.domain, draftId),
-                                        auth=(self.socrata_params.username, self.socrata_params.password))
+                                        auth=(self.socrata_params['username'], self.socrata_params['password']))
         logger.info(publishResponse.json())
         return publishResponse
+
+    def delete_draft(self, draftId):
+        time.sleep(5)
+        deleteResponse = self.client.delete(draftId)
+        if deleteResponse.status_code == 200:
+            logger.info('Empty draft {} has been discarded.'.format(draftId))
+        return deleteResponse
 
     def clean_and_upsert(self, recs, dataset_id=None):
         dataset_id = dataset_id or self.dataset_id

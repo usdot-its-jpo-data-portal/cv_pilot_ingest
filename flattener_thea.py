@@ -123,10 +123,10 @@ class TheaTIMFlattener(CvDataFlattener):
     def process(self, raw_rec):
         '''
         	Parameters:
-        		raw_rec: dictionary object of a single BSM record
+        		raw_rec: dictionary object of a single TIM record
 
         	Returns:
-        		transformed dictionary object of the BSM record
+        		transformed dictionary object of the TIM record
         '''
         out = super(TheaTIMFlattener, self).process(raw_rec)
 
@@ -151,3 +151,32 @@ class TheaTIMFlattener(CvDataFlattener):
         except:
             out_recs.append(raw_rec)
         return [self.process(out_rec) for out_rec in out_recs if out_rec]
+
+class TheaSPATFlattener(CvDataFlattener):
+    '''
+    Reads each raw SPaT data record from Tampa CV Pilot and performs data transformation,
+    including:
+    1) Flatten the data structure
+    2) Rename certain fields to achieve consistency across data sets
+    3) Add additional fields to enhance usage of the data set in Socrata
+    (e.g. randomNum, coreData_position)
+
+    '''
+    def __init__(self, **kwargs):
+        super(TheaSPATFlattener, self).__init__(**kwargs)
+
+        self.json_string_fields += [
+        'MovementState'
+        ]
+
+    def process(self, raw_rec):
+        '''
+        	Parameters:
+        		raw_rec: dictionary object of a single SPaT record
+
+        	Returns:
+        		transformed dictionary object of the SPaT record
+        '''
+        out = super(TheaSPATFlattener, self).process(raw_rec)
+
+        return out

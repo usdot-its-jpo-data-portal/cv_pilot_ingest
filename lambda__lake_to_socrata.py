@@ -37,6 +37,8 @@ app_token = SOCRATA_API_KEY,
 domain = SOCRATA_DOMAIN
 )
 
+skip_time_ms = 60*1000
+
 def load_flattener(key):
     '''
     Load appropriate data flattener based on pilot site and message type
@@ -46,7 +48,7 @@ def load_flattener(key):
         mod = __import__('flattener_{}'.format(pilot))
         flattener = getattr(mod, '{}{}Flattener'.format(pilot.title(), message_type))
     except:
-        print('Module not found. Load generic CVP flattener.')
+        print('flattener_{}.{}{}Flattener not found. Load generic CVP flattener.'.format(pilot, message_type))
         mod = __import__('flattener')
         flattener = getattr(mod, 'CvDataFlattener')
     return flattener
@@ -69,9 +71,9 @@ def lambda_handler(event, context):
         workingId = so_ingestor.create_new_draft()
 
         source_ymdh = datetime.today() - timedelta(hours=NUM_HOURS_BACKTRACK)
-        y,m,d,h = source_ymdh.strftime('%Y-%m-%d-%H').split('-')
-        formatted_source_prefix = S3_SOURCE_PREFIX.format(y,m,d,h)
-        bucket_key_tuples = mover.get_fps_from_prefix(bucket=S3_SOURCE_BUCKET, prefix=formatted_source_prefix)
+        y,m,d = source_ymdh.strftime('%Y-%m-%d').split('-')
+        formatted_source_prefix = S3_SOURCE_PREFIX.format(y,m,d)
+        bucket_key_tuples = mover.get_fps_from_prefix(bucket=S3_SOURCE_BUCKET, prefix=formatted_source_prefix, limit=10000)
         logger.info('Lambda triggered by scheduled event. Retrieved {} file paths from s3://{}/{}'.format(len(bucket_key_tuples), S3_SOURCE_BUCKET, formatted_source_prefix))
     else:
         # s3 triggered
@@ -80,6 +82,7 @@ def lambda_handler(event, context):
         bucket_key_tuples = mover.get_fps_from_event(event)
         logger.info('Lambda triggered by uploaded s3 object. Retrieved {} file paths from event'.format(len(bucket_key_tuples)))
 
+    count = 0
     for bucket, key in bucket_key_tuples:
         flattenerMod = load_flattener(key)
         flattener = flattenerMod()
@@ -95,11 +98,21 @@ def lambda_handler(event, context):
                 logger.error(traceback.format_exc())
                 err_recs.append(r)
 
+            if context.get_remaining_time_in_millis() < skip_time_ms:
+                break
+
         response = so_ingestor.clean_and_upsert(recs, workingId)
+        count += len(recs)
         logger.info(response)
+        if context.get_remaining_time_in_millis() < skip_time_ms:
+            logger.info('Not able to finish ingesting all files within lambda time limit. Skipping to publishing.')
+            break
 
     # publish draft if this is an overwrite
     if overwrite is True:
-        so_ingestor.publish_draft(workingId)
+        if count > 0:
+            so_ingestor.publish_draft(workingId)
+        else:
+            so_ingestor.delete_draft(workingId)
 
     logger.info('Processed events')

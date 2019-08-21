@@ -120,7 +120,14 @@ class CvPilotFileMover(S3FileMover):
             sqs = boto3.resource('sqs')
             self.queue = sqs.get_queue_by_name(QueueName=validation_queue_name)
 
-    def generate_outfp(self, source_bucket, source_key):
+    def generate_outfp(self, ymdh_data_dict, source_bucket, source_key):
+        if not ymdh_data_dict:
+            self.print_func('File is empty: s3://{}/{}'.format(source_bucket, source_key))
+            return None
+
+        original_ymdh = "-".join(source_key.split('/')[-5:-1])
+        no_change = "".join(ymdh_data_dict.keys()) == original_ymdh
+
         filename_prefix = self.target_bucket.replace('-public-data', '')
         regex_str = r'(?:test-)?{}(.*)-ingest'.format(self.source_bucket_prefix)
         regex_finds = re.findall(regex_str, source_bucket)
@@ -130,8 +137,8 @@ class CvPilotFileMover(S3FileMover):
             message_type = source_key.split('/')[1]
             stream_version = '0'
             if no_change and source_bucket == self.target_bucket:
-                self.print_func('No need to reorder data at {}'.format(source_path))
-                return
+                self.print_func('No need to reorder data at s3://{}/{}'.format(source_bucket, source_key))
+                return None
         else:
             pilot_name = regex_finds[0].lower()
             message_type = source_key.strip(self.source_key_prefix).split('/')[0]
@@ -173,33 +180,27 @@ class CvPilotFileMover(S3FileMover):
                 ymdh_data_dict[recordGeneratedAt_ymdh] = []
             ymdh_data_dict[recordGeneratedAt_ymdh].append(rec)
 
-        original_ymdh = "-".join(source_key.split('/')[-5:-1])
-        no_change = "".join(ymdh_data_dict.keys()) == original_ymdh
+        # generate output path
+        outfp_func = self.generate_outfp(ymdh_data_dict, source_bucket, source_key)
+        if outfp_func is None:
+            return
 
-        if ymdh_data_dict:
-            # generate outpath variables
-            outfp_func = self.generate_outfp(source_bucket, source_key)
+        for ymdh, recs in ymdh_data_dict.items():
+            target_key = outfp_func(ymdh)
+            target_path = os.path.join(self.target_bucket, target_key)
 
-            for ymdh, recs in ymdh_data_dict.items():
-                target_key = outfp_func(ymdh)
-                target_path = os.path.join(self.target_bucket, target_key)
-
-                # copy data
-                self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
-                self.write_recs(recs, self.target_bucket, target_key)
-                self.print_func('File written')
-                if self.queue and pilot_name == 'wydot':
-                    msg = {
-                    'bucket': self.target_bucket,
-                    'key': target_key,
-                    'pilot_name': pilot_name,
-                    'message_type': message_type.lower()
-                    }
-                    self.queue.send_message(
-                        MessageBody=json.dumps(msg)
-                    )
-        else:
-            self.print_func('File is empty: {}'.format(source_path))
+            # copy data
+            self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
+            self.write_recs(recs, self.target_bucket, target_key)
+            self.print_func('File written')
+            if self.queue and pilot_name == 'wydot':
+                msg = {
+                'bucket': self.target_bucket,
+                'key': target_key,
+                'pilot_name': pilot_name,
+                'message_type': message_type.lower()
+                }
+                self.queue.send_message(MessageBody=json.dumps(msg))
 
         if len(self.err_lines) > 0:
             self.print_func('{} lines not read in file. Keep file at: {}'.format(len(self.err_lines), source_path))

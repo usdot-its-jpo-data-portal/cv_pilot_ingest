@@ -120,30 +120,21 @@ class CvPilotFileMover(S3FileMover):
             sqs = boto3.resource('sqs')
             self.queue = sqs.get_queue_by_name(QueueName=validation_queue_name)
 
-    def move_file(self, source_bucket, source_key):
-        # read triggering file
-        source_path = os.path.join(source_bucket, source_key)
-        self.print_func('Triggered by file: {}'.format(source_path))
-
-        # sort all files by generatedAt timestamp ymdh
-        ymdh_data_dict = {}
-        data_stream = self.get_data_stream(source_bucket, source_key)
-        for rec in self.newline_json_rec_generator(data_stream):
-            recordGeneratedAt = rec['metadata']['recordGeneratedAt']
-            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:19].replace('T', ' '), '%Y-%m-%d %H:%M:%S')
-            recordGeneratedAt_ymdh = datetime.strftime(recordGeneratedAt_dt, '%Y-%m-%d-%H')
-            if recordGeneratedAt_ymdh not in ymdh_data_dict:
-                ymdh_data_dict[recordGeneratedAt_ymdh] = []
-            ymdh_data_dict[recordGeneratedAt_ymdh].append(rec)
-
-        # TODO: add validator
-
-        if ymdh_data_dict:
-            # generate outpath variables
-            regex_str = r'(?:test-)?{}(.*)-ingest'.format(self.source_bucket_prefix)
-            pilot_name = re.findall(regex_str, source_bucket)[0].lower()
+    def generate_outfp(self, source_bucket, source_key):
+        filename_prefix = self.target_bucket.replace('-public-data', '')
+        regex_str = r'(?:test-)?{}(.*)-ingest'.format(self.source_bucket_prefix)
+        regex_finds = re.findall(regex_str, source_bucket)
+        if len(regex_finds) == 0:
+            # if source bucket is sandbox
+            pilot_name = source_key.split('/')[0]
+            message_type = source_key.split('/')[1]
+            stream_version = '0'
+            if no_change and source_bucket == self.target_bucket:
+                self.print_func('No need to reorder data at {}'.format(source_path))
+                return
+        else:
+            pilot_name = regex_finds[0].lower()
             message_type = source_key.strip(self.source_key_prefix).split('/')[0]
-            filename_prefix = self.target_bucket.replace('-public-data', '')
 
             # get stream version
             regex_str2 = filename_prefix+r'-(?:.*)-public-(\d)-(?:.*)'
@@ -153,14 +144,44 @@ class CvPilotFileMover(S3FileMover):
             else:
                 stream_version = stream_version_res[0]
 
-            for ymdh, recs in ymdh_data_dict.items():
-                y,m,d,h = ymdh.split('-')
-                ymdhms = '{}-00-00'.format(ymdh)
-                uuid4 = str(uuid.uuid4())
+        def outfp_func(ymdh):
+            y,m,d,h = ymdh.split('-')
+            ymdhms = '{}-00-00'.format(ymdh)
+            uuid4 = str(uuid.uuid4())
 
-                target_filename = '-'.join([filename_prefix, message_type.lower(), 'public', str(stream_version), ymdhms, uuid4])
-                target_prefix = os.path.join(pilot_name, message_type, y, m, d, h)
-                target_key = os.path.join(target_prefix, target_filename)
+            target_filename = '-'.join([filename_prefix, message_type.lower(), 'public', str(stream_version), ymdhms, uuid4])
+            target_prefix = os.path.join(pilot_name, message_type, y, m, d, h)
+            target_key = os.path.join(target_prefix, target_filename)
+            return target_key
+
+        return outfp_func
+
+    def move_file(self, source_bucket, source_key):
+        # TODO: split this function more
+        # read triggering file
+        source_path = os.path.join(source_bucket, source_key)
+        self.print_func('Triggered by file: {}'.format(source_path))
+
+        # sort all files by generatedAt timestamp ymdh
+        ymdh_data_dict = {}
+        data_stream = self.get_data_stream(source_bucket, source_key)
+        for rec in self.newline_json_rec_generator(data_stream):
+            recordGeneratedAt = rec['metadata']['recordGeneratedAt']
+            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
+            recordGeneratedAt_ymdh = datetime.strftime(recordGeneratedAt_dt, '%Y-%m-%d-%H')
+            if recordGeneratedAt_ymdh not in ymdh_data_dict:
+                ymdh_data_dict[recordGeneratedAt_ymdh] = []
+            ymdh_data_dict[recordGeneratedAt_ymdh].append(rec)
+
+        original_ymdh = "-".join(source_key.split('/')[-5:-1])
+        no_change = "".join(ymdh_data_dict.keys()) == original_ymdh
+
+        if ymdh_data_dict:
+            # generate outpath variables
+            outfp_func = self.generate_outfp(source_bucket, source_key)
+
+            for ymdh, recs in ymdh_data_dict.items():
+                target_key = outfp_func(ymdh)
                 target_path = os.path.join(self.target_bucket, target_key)
 
                 # copy data
@@ -175,8 +196,7 @@ class CvPilotFileMover(S3FileMover):
                     'message_type': message_type.lower()
                     }
                     self.queue.send_message(
-                        MessageBody=json.dumps(msg),
-                        # MessageGroupId=str(uuid.uuid4())
+                        MessageBody=json.dumps(msg)
                     )
         else:
             self.print_func('File is empty: {}'.format(source_path))

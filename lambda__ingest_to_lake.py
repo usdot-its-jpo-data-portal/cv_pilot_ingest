@@ -10,7 +10,7 @@ import os
 import traceback
 
 
-from s3FileMover import cvPilotFileMover
+from s3_file_mover import CvPilotFileMover
 
 
 logger = logging.getLogger()
@@ -20,14 +20,16 @@ SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
 TARGET_BUCKET = os.environ['TARGET_BUCKET']
 SOURCE_BUCKET_PREFIX = 'usdot-its-datahub-'
 SOURCE_KEY_PREFIX = os.environ['SOURCE_KEY_PREFIX'] or ""
+VALIDATION_QUEUE_NAME = os.environ['VALIDATION_QUEUE_NAME'] or None
 
 
 def lambda_handler(event, context):
     """AWS Lambda handler. """
 
-    mover = cvPilotFileMover(target_bucket=TARGET_BUCKET,
+    mover = CvPilotFileMover(target_bucket=TARGET_BUCKET,
                              source_bucket_prefix=SOURCE_BUCKET_PREFIX,
-                             source_key_prefix=SOURCE_KEY_PREFIX)
+                             source_key_prefix=SOURCE_KEY_PREFIX,
+                             validation_queue_name=VALIDATION_QUEUE_NAME)
 
     for bucket, key in mover.get_fps_from_event(event):
         try:

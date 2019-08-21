@@ -22,17 +22,37 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)  # necessary to make sure aws is logging
 
 
-class s3FileMover(object):
+class S3FileMover(object):
 
-    def __init__(self, target_bucket):
+    def __init__(self, target_bucket=None, log=True, s3_client=None):
         self.target_bucket = target_bucket
-        self.s3_client = boto3.client('s3')
+        self.s3_client = s3_client or boto3.client('s3')
+        self.print_func = print
+        if log:
+            self.print_func = logger.info
+        self.err_lines = []
 
     def get_fps_from_event(self, event):
         bucket_key_tuples = [(e['s3']['bucket']['name'], e['s3']['object']['key']) for e in event['Records']]
         bucket_key_dict = {os.path.join(bucket, key): (bucket, key) for bucket, key in bucket_key_tuples}
         bucket_key_tuples_deduped = list(bucket_key_dict.values())
         return bucket_key_tuples_deduped
+
+    def get_fps_from_prefix(self, bucket, prefix, limit=0):
+        s3_source_kwargs = dict(Bucket=bucket, Prefix=prefix)
+
+        bucket_key_tuples = []
+        while True:
+            resp = self.s3_client.list_objects_v2(**s3_source_kwargs)
+            if not resp.get('Contents'):
+                return []
+            bucket_key_tuples += [(bucket, i['Key']) for i in resp['Contents']]
+            if not resp.get('NextContinuationToken'):
+                break
+            s3_source_kwargs['ContinuationToken'] = resp['NextContinuationToken']
+            if limit > 0 and len(bucket_key_tuples) > limit:
+                break
+        return bucket_key_tuples
 
     def get_data_stream(self, bucket, key):
         obj = self.s3_client.get_object(Bucket=bucket, Key=key)
@@ -46,12 +66,18 @@ class s3FileMover(object):
     def newline_json_rec_generator(self, data_stream):
         line = data_stream.readline()
         while line:
+            if type(line) == bytes:
+                line_stripped = line.strip(b'\n')
+            else:
+                line_stripped = line.strip('\n')
+
             try:
-                if line.strip(b'\n'):
-                    yield json.loads(line.strip(b'\n'))
+                if line_stripped:
+                    yield json.loads(line_stripped)
             except:
-                print(traceback.format_exc())
-                print('Invalid json line. Skipping: {}'.format(line))
+                self.print_func(traceback.format_exc())
+                self.print_func('Invalid json line. Skipping: {}'.format(line))
+                self.err_lines.append(line)
             line = data_stream.readline()
 
     def write_recs(self, recs, bucket, key):
@@ -63,7 +89,7 @@ class s3FileMover(object):
 
     def move_file(self, source_bucket, source_key):
         source_path = os.path.join(source_bucket, source_key)
-        logger.info('Triggered by file: {}'.format(source_path))
+        self.print_func('Triggered by file: {}'.format(source_path))
 
         data_stream = self.get_data_stream(source_bucket, source_key)
         recs = []
@@ -73,26 +99,31 @@ class s3FileMover(object):
         if recs:
             target_key = source_key
             target_path = os.path.join(self.target_bucket, target_key)
-            logger.info('Writing {} records from {} -> {}'.format(len(recs), source_path, target_path))
+            self.print_func('Writing {} records from {} -> {}'.format(len(recs), source_path, target_path))
             self.write_recs(recs, self.target_bucket, target_key)
         else:
-            logger.info('File is empty: {}'.format(source_path))
+            self.print_func('File is empty: {}'.format(source_path))
 
-        logger.info('Delete file: {}'.format(source_path))
+        self.print_func('Delete file: {}'.format(source_path))
         self.delete_file(source_bucket, source_key)
 
 
-class cvPilotFileMover(s3FileMover):
+class CvPilotFileMover(S3FileMover):
 
-    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, **kwargs):
-        super(cvPilotFileMover, self).__init__(**kwargs)
+    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, validation_queue_name=None, *args, **kwargs):
+        super(CvPilotFileMover, self).__init__(*args, **kwargs)
         self.source_bucket_prefix = source_bucket_prefix
         self.source_key_prefix = source_key_prefix or ''
+        self.queue = None
+
+        if validation_queue_name:
+            sqs = boto3.resource('sqs')
+            self.queue = sqs.get_queue_by_name(QueueName=validation_queue_name)
 
     def move_file(self, source_bucket, source_key):
         # read triggering file
         source_path = os.path.join(source_bucket, source_key)
-        logger.info('Triggered by file: {}'.format(source_path))
+        self.print_func('Triggered by file: {}'.format(source_path))
 
         # sort all files by generatedAt timestamp ymdh
         ymdh_data_dict = {}
@@ -133,11 +164,26 @@ class cvPilotFileMover(s3FileMover):
                 target_path = os.path.join(self.target_bucket, target_key)
 
                 # copy data
-                logger.info('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
+                self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
                 self.write_recs(recs, self.target_bucket, target_key)
+                self.print_func('File written')
+                if self.queue and pilot_name == 'wydot':
+                    msg = {
+                    'bucket': self.target_bucket,
+                    'key': target_key,
+                    'pilot_name': pilot_name,
+                    'message_type': message_type.lower()
+                    }
+                    self.queue.send_message(
+                        MessageBody=json.dumps(msg),
+                        # MessageGroupId=str(uuid.uuid4())
+                    )
         else:
-            logger.info('File is empty: {}'.format(source_path))
+            self.print_func('File is empty: {}'.format(source_path))
 
-        logger.info('Delete file: {}'.format(source_path))
-        self.delete_file(source_bucket, source_key)
+        if len(self.err_lines) > 0:
+            self.print_func('{} lines not read in file. Keep file at: {}'.format(len(self.err_lines), source_path))
+        else:
+            self.print_func('Delete file: {}'.format(source_path))
+            self.delete_file(source_bucket, source_key)
         return

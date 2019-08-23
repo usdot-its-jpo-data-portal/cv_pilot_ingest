@@ -163,6 +163,20 @@ class CvPilotFileMover(S3FileMover):
 
         return outfp_func
 
+    def get_ymdh(self, rec):
+        recordGeneratedAt = rec['metadata'].get('recordGeneratedAt')
+        if not recordGeneratedAt:
+            recordGeneratedAt = rec['payload']['data']['timeStamp']
+        try:
+            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
+        except:
+            recordGeneratedAt = rec['metadata'].get('odeReceivedAt')
+            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
+
+        recordGeneratedAt_ymdh = datetime.strftime(recordGeneratedAt_dt, '%Y-%m-%d-%H')
+        return recordGeneratedAt_ymdh
+
+
     def move_file(self, source_bucket, source_key):
         # TODO: split this function more
         # read triggering file
@@ -173,9 +187,7 @@ class CvPilotFileMover(S3FileMover):
         ymdh_data_dict = {}
         data_stream = self.get_data_stream(source_bucket, source_key)
         for rec in self.newline_json_rec_generator(data_stream):
-            recordGeneratedAt = rec['metadata']['recordGeneratedAt']
-            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
-            recordGeneratedAt_ymdh = datetime.strftime(recordGeneratedAt_dt, '%Y-%m-%d-%H')
+            recordGeneratedAt_ymdh = self.get_ymdh(rec)
             if recordGeneratedAt_ymdh not in ymdh_data_dict:
                 ymdh_data_dict[recordGeneratedAt_ymdh] = []
             ymdh_data_dict[recordGeneratedAt_ymdh].append(rec)

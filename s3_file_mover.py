@@ -168,12 +168,13 @@ class CvPilotFileMover(S3FileMover):
         if not recordGeneratedAt:
             recordGeneratedAt = rec['payload']['data']['timeStamp']
         try:
-            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
+            dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
         except:
-            recordGeneratedAt = rec['metadata'].get('odeReceivedAt')
-            recordGeneratedAt_dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
-
-        recordGeneratedAt_ymdh = datetime.strftime(recordGeneratedAt_dt, '%Y-%m-%d-%H')
+            print(traceback.format_exc())
+            recordReceivedAt = rec['metadata'].get('odeReceivedAt')
+            dt = datetime.strptime(recordReceivedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
+            print('Unable to parse {} timestamp. Using odeReceivedAt timestamp of {}'.format(recordGeneratedAt, recordReceivedAt))
+        recordGeneratedAt_ymdh = datetime.strftime(dt, '%Y-%m-%d-%H')
         return recordGeneratedAt_ymdh
 
 

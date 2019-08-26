@@ -1,5 +1,5 @@
 """
-
+Folder Restructure utility script
 """
 from argparse import ArgumentParser
 import boto3
@@ -9,15 +9,18 @@ import time
 from s3_file_mover import CvPilotFileMover
 
 
-# fill out the s3_credentials object with your own credential if credentials are not held in env variables
-# if credentials are held in env varialbes, uncomment the line below to set s3_credentials as an empty object
+# If credentials are not held in env variables, commend out the second line that sets s3_credentials variable to 
+# a empty dictionary and fill out the s3_credentials object with your own credentials.
+# If credentials are held in env varialbes, uncomment the line below to set s3_credentials as an empty dictionary
+
 s3_credentials = {
     'aws_access_key_id': 'localkey',
     'aws_secret_access_key': 'localsecret',
     'aws_session_token': 'localtoken',
     'region_name': 'us-east-1'
 }
-# s3_credentials = {}
+s3_credentials = {}
+
 
 class FolderRestructurer(object):
 

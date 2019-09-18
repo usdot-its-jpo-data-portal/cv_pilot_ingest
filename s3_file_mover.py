@@ -170,10 +170,10 @@ class CvPilotFileMover(S3FileMover):
         try:
             dt = datetime.strptime(recordGeneratedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
         except:
-            print(traceback.format_exc())
+            self.print_func(traceback.format_exc())
             recordReceivedAt = rec['metadata'].get('odeReceivedAt')
             dt = datetime.strptime(recordReceivedAt[:14].replace('T', ' '), '%Y-%m-%d %H:')
-            print('Unable to parse {} timestamp. Using odeReceivedAt timestamp of {}'.format(recordGeneratedAt, recordReceivedAt))
+            self.print_func('Unable to parse {} timestamp. Using odeReceivedAt timestamp of {}'.format(recordGeneratedAt, recordReceivedAt))
         recordGeneratedAt_ymdh = datetime.strftime(dt, '%Y-%m-%d-%H')
         return recordGeneratedAt_ymdh
 

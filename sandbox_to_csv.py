@@ -176,7 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('--pilot', default="wydot", help="Pilot name (options: wydot, thea).")
     parser.add_argument('--message_type', default=None, help="Message type (options: bsm, tim, spat).")
     parser.add_argument('--sdate', default=None, required=True, help="Starting generatedAt date of your data, in the format of YYYY-MM-DD.")
-    parser.add_argument('--edate', default=None, help="Ending generatedAt date of your data, in the format of YYYY-MM-DD. Will be set to 24 hours from the start date if not supplied.")
+    parser.add_argument('--edate', default=None, help="Ending generatedAt date of your data, in the format of YYYY-MM-DD. If not supplied, this will be set to 24 hours from the start date.")
     parser.add_argument('--json', default=False, action='store_true', help="Supply flag if file is to be exported as newline json instead of CSV file.")
     args = parser.parse_args()
 

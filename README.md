@@ -1,5 +1,5 @@
 # cv_pilot_ingest
-Code for CV pilot data ingestion pipeline (ingestion into ITS Sandbox and from ITS Sandbox to Socrata) and utilities to work with ITS Sandbox data. For more information on ITS Sandbox data, please refer to README at the [ITS Sandbox README page](https://github.com/usdot-its-jpo-data-portal/sandbox/tree/split-repo#exporting-data-to-csv-with-sandbox-exporter).
+Utilities to work with ITS Sandbox and code for CV pilot data ingestion pipeline (ingestion into ITS Sandbox and from ITS Sandbox to Socrata). For more information on ITS Sandbox data, please refer to the [ITS Sandbox README page](https://github.com/usdot-its-jpo-data-portal/sandbox/tree/split-repo#exporting-data-to-csv-with-sandbox-exporter).
 
 This repository currently includes several utility scripts: Sandbox Exporter, S3 Folder Restructurer, Data Flattener, and Socrata Connector.
 

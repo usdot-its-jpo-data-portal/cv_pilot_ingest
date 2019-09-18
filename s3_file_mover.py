@@ -179,7 +179,6 @@ class CvPilotFileMover(S3FileMover):
 
 
     def move_file(self, source_bucket, source_key):
-        # TODO: split this function more
         # read triggering file
         source_path = os.path.join(source_bucket, source_key)
         self.print_func('Triggered by file: {}'.format(source_path))

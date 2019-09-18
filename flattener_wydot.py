@@ -65,13 +65,14 @@ class WydotBSMFlattener(CvDataFlattener):
         '''
         out = super(WydotBSMFlattener, self).process(raw_rec)
 
-        for part2_val in out['payload_data_partII']:
+        for part2_val in out.get('payload_data_partII', []):
             part2_val_out = self.transform(part2_val['value'],
                 rename_prefix_fields=self.part2_rename_prefix_fields,
                 rename_fields=self.part2_rename_fields,
                 json_string_fields=self.part2_json_string_fields)
             out.update(part2_val_out)
-        del out['payload_data_partII']
+        if 'payload_data_partII' in out:
+            del out['payload_data_partII']
 
         if 'coreData_position_long' in out:
             out['coreData_position'] = "POINT ({} {})".format(out['coreData_position_long'], out['coreData_position_lat'])

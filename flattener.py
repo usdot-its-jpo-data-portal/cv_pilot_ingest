@@ -2,6 +2,22 @@ import copy
 import dateutil.parser
 import json
 import random
+import re
+
+
+def load_flattener(key):
+    '''
+    Load appropriate data flattener based on pilot site and message type
+    '''
+    pilot, message_type = key.split('/')[:2]
+    try:
+        mod = __import__('flattener_{}'.format(pilot))
+        flattener = getattr(mod, '{}{}Flattener'.format(pilot.title(), message_type))
+    except:
+        print('flattener_{}.{}{}Flattener not found. Load generic CVP flattener.'.format(pilot, pilot.title(), message_type))
+        mod = __import__('flattener')
+        flattener = getattr(mod, 'CvDataFlattener')
+    return flattener
 
 
 class DataFlattener(object):
@@ -63,6 +79,10 @@ class DataFlattener(object):
         return [self.process(raw_rec, **kwargs)]
 
 
+def parse_date(date_str):
+    clean_date_str = lambda x: re.sub(r'\[[a-zA-Z]*\]', '', x)
+    return dateutil.parser.parse(clean_date_str(date_str))
+
 class CvDataFlattener(DataFlattener):
     def __init__(self, *args, **kwargs):
         super(CvDataFlattener, self).__init__(*args, **kwargs)
@@ -82,7 +102,7 @@ class CvDataFlattener(DataFlattener):
         self.json_string_fields = ['size']
 
     def add_enhancements(self, rec):
-        metadata_generatedAt = dateutil.parser.parse(rec['metadata_generatedAt'][:23])
+        metadata_generatedAt = parse_date(rec['metadata_generatedAt'])
         rec['metadata_generatedAt'] = metadata_generatedAt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]
         rec['randomNum'] = random.random()
         rec['metadata_generatedAt_timeOfDay'] = metadata_generatedAt.hour + metadata_generatedAt.minute/60 + metadata_generatedAt.second/3600

@@ -114,7 +114,7 @@ class SandboxExporter(object):
 
     def run(self):
         print('===========START===========')
-        print('Exporting {} {} data between {} and {}'.format(self.pilot, self.message_type, self.sdate.date, self.edate.date))
+        print('Exporting {} {} data between {} and {}'.format(self.pilot, self.message_type, self.sdate, self.edate))
         t0 = time.time()
         fp = lambda filenum: '{}_{}_{}_{}_{}'.format(self.pilot, self.message_type.lower(), self.sdate.strftime('%Y%m%d%H'), self.edate.strftime('%Y%m%d%H'), filenum)
         sfolder = self.get_folder_prefix(self.sdate)

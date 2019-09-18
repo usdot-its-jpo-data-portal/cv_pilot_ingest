@@ -3,6 +3,12 @@ Utilities to work with ITS Sandbox and code for CV pilot data ingestion pipeline
 
 This repository currently includes several utility scripts: Sandbox Exporter, S3 Folder Restructurer, Data Flattener, and Socrata Connector.
 
+**Table of Contents**
+
+* [Usage Example](#usage-example)
+	* [Sandbox Exporter](#sandbox-exporter)
+	* [S3 Folder Restructurer](#S3-Folder-Restructurer)
+
 ## Usage example
 
 ### Sandbox Exporter

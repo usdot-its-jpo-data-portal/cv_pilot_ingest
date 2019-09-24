@@ -64,7 +64,7 @@ from s3_file_mover import CvPilotFileMover
 #     'aws_access_key_id': None,
 #     'aws_secret_access_key': None,
 #     'aws_session_token': None,
-#     'region_name': 'us-east-1'
+#     'region_name': None
 # }
 
 s3_credentials = {}

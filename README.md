@@ -72,7 +72,7 @@ optional arguments:
                         amazonaws.com/v1/documentation/api/latest/guide/config
                         uration.html#shared-credentials-file for more information.
 ```
-Example :
+Examples:
 - Retrieve all WYDOT TIM data from 2019-09-16:
 `python -u sandbox_to_csv.py --pilot wydot --message_type tim --sdate 2019-09-16`
 - Retrieve all WYDOT TIM data between 2019-09-16 to 2019-09-18:

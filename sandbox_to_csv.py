@@ -243,12 +243,12 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description="Script for exporting ITS sandbox data from specified date range to merged CSV files")
     parser.add_argument('--bucket', default="test-usdot-its-cvpilot-public-data", help="Name of the s3 bucket. Default: usdot-its-cvpilot-public-data")
-    parser.add_argument('--pilot', default="wydot", help="Pilot name (options: wydot, thea).")
-    parser.add_argument('--message_type', default=None, help="Message type (options: bsm, tim, spat).")
+    parser.add_argument('--pilot', default="wydot", help="Pilot name (options: wydot, thea). Default: wydot")
+    parser.add_argument('--message_type', default="tim", help="Message type (options: bsm, tim, spat). Default: tim")
     parser.add_argument('--sdate', default=None, required=True, help="Starting generatedAt date of your data, in the format of YYYY-MM-DD.")
     parser.add_argument('--edate', default=None, help="Ending generatedAt date of your data, in the format of YYYY-MM-DD. If not supplied, this will be set to 24 hours from the start date.")
-    parser.add_argument('--output_convention', default='{pilot}_{message_type}_{sdate}_{edate}', help="Supply string for naming convention of output file. Variables available for use in this string include: pilot, messate_type, sdate, edate. Note that a file number will always be appended to the output file name.")
-    parser.add_argument('--json', default=False, action='store_true', help="Supply flag if file is to be exported as newline json instead of CSV file.")
+    parser.add_argument('--output_convention', default='{pilot}_{message_type}_{sdate}_{edate}', help="Supply string for naming convention of output file. Variables available for use in this string include: pilot, messate_type, sdate, edate. Note that a file number will always be appended to the output file name. Default: {pilot}_{message_type}_{sdate}_{edate}")
+    parser.add_argument('--json', default=False, action='store_true', help="Supply flag if file is to be exported as newline json instead of CSV file. Default: False")
     parser.add_argument('--aws_profile', default='default', help="Supply name of AWS profile if not using default profile. AWS profile must be configured in ~/.aws/credentials on your machine. See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file for more information.")
     args = parser.parse_args()
 

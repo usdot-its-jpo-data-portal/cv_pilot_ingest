@@ -1,8 +1,40 @@
 """
-Folder Restructure utility script
+ITS DataHub Sandbox Exporter
+
+Script for exporting ITS sandbox data from specified date range to merged CSV
+or JSON files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --bucket BUCKET       Name of the s3 bucket. Default: usdot-its-cvpilot-
+                        public-data
+  --pilot PILOT         Pilot name (options: wydot, thea).
+  --message_type MESSAGE_TYPE
+                        Message type (options: bsm, tim, spat).
+  --sdate SDATE         Starting generatedAt date of your data, in the format
+                        of YYYY-MM-DD.
+  --edate EDATE         Ending generatedAt date of your data, in the format of
+                        YYYY-MM-DD. If not supplied, this will be set to 24
+                        hours from the start date.
+  --output_convention OUTPUT_CONVENTION
+                        Supply string for naming convention of output file.
+                        Variables available for use in this string include:
+                        pilot, messate_type, sdate, edate. Note that a file
+                        number will always be appended to the output file
+                        name.
+  --json                Supply flag if file is to be exported as newline json
+                        instead of CSV file.
+  --aws_profile AWS_PROFILE
+                        Supply name of AWS profile if not using default
+                        profile. AWS profile must be configured in
+                        ~/.aws/credentials on your machine. See https://boto3.
+                        amazonaws.com/v1/documentation/api/latest/guide/config
+                        uration.html#shared-credentials-file for more information.
+
 """
 from argparse import ArgumentParser
 import boto3
+from botocore.exceptions import ProfileNotFound
 from copy import copy
 import dateutil.parser
 from datetime import datetime, timedelta
@@ -17,14 +49,21 @@ from flattener import load_flattener
 from s3_file_mover import CvPilotFileMover
 
 
-# If credentials are held in env variables, set s3_credentials as an empty dictionary (default)
-# If credentials are not held in env variables, comment out the second line that sets s3_credentials variable to
-# a empty dictionary and fill out the s3_credentials object with your own credentials.
+# We highly suggest that the AWS credentials to be configured in the
+# ~/.aws/credentials file. Instructions on how to do so can be found
+# at https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file
+
+# Alternatively, if you cannot configure credentials in a shared credentials file,
+# nor save it in the environment variable, you can comment out line 37 which
+# sets the s3_credentials variable to a empty dictionary and fill out the
+# s3_credentials dictionary below with your own credentials.
+# If you choose this method, please be careful when sharing the file so that you
+# don't accidentally expose your AWS credentials.
 
 # s3_credentials = {
-#     'aws_access_key_id': 'localkey',
-#     'aws_secret_access_key': 'localsecret',
-#     'aws_session_token': 'localtoken',
+#     'aws_access_key_id': None,
+#     'aws_secret_access_key': None,
+#     'aws_session_token': None,
 #     'region_name': 'us-east-1'
 # }
 
@@ -33,14 +72,19 @@ s3_credentials = {}
 
 class SandboxExporter(object):
 
-    def __init__(self, bucket='usdot-its-cvpilot-public-data', pilot='wydot', message_type='bsm', sdate=None, edate=None, csv=True):
+    def __init__(self, bucket='usdot-its-cvpilot-public-data', pilot='wydot',
+                message_type='bsm', sdate=None, edate=None, csv=True,
+                output_convention='{pilot}_{message_type}_{sdate}_{edate}',
+                aws_profile="default"):
         # set up
         self.bucket = bucket
-        self.pilot=pilot
-        self.message_type=message_type
+        self.pilot = pilot
+        self.message_type = message_type
         self.sdate = None
         self.edate = None
         self.csv = csv
+        self.output_convention = output_convention + '_{filenum}'
+        self.aws_profile = aws_profile
 
         if sdate:
             self.sdate = dateutil.parser.parse(sdate)
@@ -49,7 +93,8 @@ class SandboxExporter(object):
         else:
             self.edate = self.sdate + timedelta(hours=24)
 
-        s3botoclient = boto3.client('s3', **s3_credentials)
+        aws_session = self.create_aws_session()
+        s3botoclient = aws_session.client('s3')
         self.mover = CvPilotFileMover(target_bucket=bucket,
                                  source_bucket_prefix="",
                                  source_key_prefix="",
@@ -62,6 +107,18 @@ class SandboxExporter(object):
         self.current_recs = []
         self.file_names = []
 
+    def create_aws_session(self):
+        try:
+            session = boto3.session.Session(profile_name=self.aws_profile)
+        except ProfileNotFound:
+            if not s3_credentials.get('aws_access_key_id'):
+                print('Please supply a valid AWS profile name (preferred) or provide s3 credentials.')
+                exit()
+            else:
+                session = boto3.session.Session(**s3_credentials)
+        except:
+            print('Please supply a valid AWS profile name (preferred) or provide s3 credentials.')
+        return session
 
     def get_folder_prefix(self, dt):
         y,m,d,h = dt.strftime('%Y-%m-%d-%H').split('-')
@@ -116,7 +173,13 @@ class SandboxExporter(object):
         print('===========START===========')
         print('Exporting {} {} data between {} and {}'.format(self.pilot, self.message_type, self.sdate, self.edate))
         t0 = time.time()
-        fp = lambda filenum: '{}_{}_{}_{}_{}'.format(self.pilot, self.message_type.lower(), self.sdate.strftime('%Y%m%d%H'), self.edate.strftime('%Y%m%d%H'), filenum)
+        fp_params = {
+            'pilot': self.pilot,
+            'message_type': self.message_type.lower(),
+            'sdate': self.sdate.strftime('%Y%m%d%H'),
+            'edate': self.edate.strftime('%Y%m%d%H')
+        }
+        fp = lambda filenum: self.output_convention.format(**fp_params, filenum=filenum)
         sfolder = self.get_folder_prefix(self.sdate)
         efolder = self.get_folder_prefix(self.edate)
 
@@ -168,7 +231,14 @@ class SandboxExporter(object):
 if __name__ == '__main__':
     """
     Sample Usage
-    python -u restructure_folder.py --bucket usdot-its-cvpilot-public-data --bucket_prefix usdot-its-datahub- --folder wydot/BSM/2019/
+    Retrieve all WYDOT TIM data from 2019-09-16:
+    python -u sandbox_to_csv.py --pilot wydot --message_type tim --sdate 2019-09-16
+
+    Retrieve all WYDOT TIM data between 2019-09-16 to 2019-09-18:
+    python -u sandbox_to_csv.py --pilot thea --message_type tim --sdate 2019-09-16 --edate 2019-09-18
+
+    Retrieve all WYDOT TIM data between 2019-09-16 to 2019-09-18 in json newline format (instead of flattened CSV):
+    python -u sandbox_to_csv.py --pilot thea --message_type tim --sdate 2019-09-16 --edate 2019-09-18 --json
     """
 
     parser = ArgumentParser(description="Script for exporting ITS sandbox data from specified date range to merged CSV files")
@@ -177,7 +247,9 @@ if __name__ == '__main__':
     parser.add_argument('--message_type', default=None, help="Message type (options: bsm, tim, spat).")
     parser.add_argument('--sdate', default=None, required=True, help="Starting generatedAt date of your data, in the format of YYYY-MM-DD.")
     parser.add_argument('--edate', default=None, help="Ending generatedAt date of your data, in the format of YYYY-MM-DD. If not supplied, this will be set to 24 hours from the start date.")
+    parser.add_argument('--output_convention', default='{pilot}_{message_type}_{sdate}_{edate}', help="Supply string for naming convention of output file. Variables available for use in this string include: pilot, messate_type, sdate, edate. Note that a file number will always be appended to the output file name.")
     parser.add_argument('--json', default=False, action='store_true', help="Supply flag if file is to be exported as newline json instead of CSV file.")
+    parser.add_argument('--aws_profile', default='default', help="Supply name of AWS profile if not using default profile. AWS profile must be configured in ~/.aws/credentials on your machine. See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file for more information.")
     args = parser.parse_args()
 
     exporter = SandboxExporter(
@@ -186,5 +258,6 @@ if __name__ == '__main__':
         message_type=args.message_type,
         sdate=args.sdate,
         edate=args.edate,
-        csv=bool(not args.json))
+        csv=bool(not args.json),
+        output_convention=args.output_convention)
     exporter.run()

@@ -20,12 +20,13 @@ This utility can be used to download data generated between a specified date ran
                          [--message_type MESSAGE_TYPE] --sdate SDATE
                          [--edate EDATE]
                          [--output_convention OUTPUT_CONVENTION] [--json]
-                         [--aws_profile AWS_PROFILE]`
+                         [--aws_profile AWS_PROFILE] [--zip]
+`
 
 ```
 optional arguments:
   -h, --help            show this help message and exit
-  --bucket BUCKET       Name of the s3 bucket. Default: usdot-its-cvpilot-
+	--bucket BUCKET       Name of the s3 bucket. Default: usdot-its-cvpilot-
                         public-data
   --pilot PILOT         Pilot name (options: wydot, thea). Default: wydot
   --message_type MESSAGE_TYPE
@@ -50,6 +51,8 @@ optional arguments:
                         amazonaws.com/v1/documentation/api/latest/guide/config
                         uration.html#shared-credentials-file for more
                         information.
+  --zip                 Supply flag if output files should be zipped together.
+                        Default: False
 ```
 
 Example Usage:

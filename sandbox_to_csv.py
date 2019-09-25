@@ -8,9 +8,9 @@ optional arguments:
   -h, --help            show this help message and exit
   --bucket BUCKET       Name of the s3 bucket. Default: usdot-its-cvpilot-
                         public-data
-  --pilot PILOT         Pilot name (options: wydot, thea).
+  --pilot PILOT         Pilot name (options: wydot, thea). Default: wydot
   --message_type MESSAGE_TYPE
-                        Message type (options: bsm, tim, spat).
+                        Message type (options: bsm, tim, spat). Default: tim
   --sdate SDATE         Starting generatedAt date of your data, in the format
                         of YYYY-MM-DD.
   --edate EDATE         Ending generatedAt date of your data, in the format of
@@ -21,15 +21,18 @@ optional arguments:
                         Variables available for use in this string include:
                         pilot, messate_type, sdate, edate. Note that a file
                         number will always be appended to the output file
-                        name.
+                        name. Default: {pilot}_{message_type}_{sdate}_{edate}
   --json                Supply flag if file is to be exported as newline json
-                        instead of CSV file.
+                        instead of CSV file. Default: False
   --aws_profile AWS_PROFILE
                         Supply name of AWS profile if not using default
                         profile. AWS profile must be configured in
                         ~/.aws/credentials on your machine. See https://boto3.
                         amazonaws.com/v1/documentation/api/latest/guide/config
-                        uration.html#shared-credentials-file for more information.
+                        uration.html#shared-credentials-file for more
+                        information.
+  --zip                 Supply flag if output files should be zipped together.
+                        Default: False
 
 """
 from argparse import ArgumentParser

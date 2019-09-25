@@ -43,6 +43,7 @@ import pandas as pd
 import threading
 import time
 import traceback
+import zipfile
 
 
 from flattener import load_flattener
@@ -73,7 +74,7 @@ s3_credentials = {}
 class SandboxExporter(object):
 
     def __init__(self, bucket='usdot-its-cvpilot-public-data', pilot='wydot',
-                message_type='bsm', sdate=None, edate=None, csv=True,
+                message_type='bsm', sdate=None, edate=None, csv=True, zip=False,
                 output_convention='{pilot}_{message_type}_{sdate}_{edate}',
                 aws_profile="default"):
         # set up
@@ -83,7 +84,8 @@ class SandboxExporter(object):
         self.sdate = None
         self.edate = None
         self.csv = csv
-        self.output_convention = output_convention + '_{filenum}'
+        self.zip = zip
+        self.output_convention = output_convention
         self.aws_profile = aws_profile
 
         if sdate:
@@ -149,6 +151,13 @@ class SandboxExporter(object):
             self.write_json_newline(recs, fp+ext)
         print('Wrote {} recs to {}'.format(len(recs), fp+ext ))
 
+    def zip_files(self, fp_params):
+        outfp = (self.output_convention+'.zip').format(**fp_params)
+        with zipfile.ZipFile(outfp, 'w') as outzip:
+            for fp in self.file_names:
+                outzip.write(fp, compress_type=zipfile.ZIP_DEFLATED)
+        print('Output zip file containing {} files at:\n{}'.format(len(self.file_names), outfp))
+
     def process(self, key):
         s3botoclient = boto3.client('s3', **s3_credentials)
         mover = CvPilotFileMover(target_bucket=self.bucket,
@@ -179,7 +188,7 @@ class SandboxExporter(object):
             'sdate': self.sdate.strftime('%Y%m%d%H'),
             'edate': self.edate.strftime('%Y%m%d%H')
         }
-        fp = lambda filenum: self.output_convention.format(**fp_params, filenum=filenum)
+        fp = lambda filenum: (self.output_convention+'_{filenum}').format(**fp_params, filenum=filenum)
         sfolder = self.get_folder_prefix(self.sdate)
         efolder = self.get_folder_prefix(self.edate)
 
@@ -222,6 +231,8 @@ class SandboxExporter(object):
         print('===========================')
         print('{} keys retrieved between s3://{}/{} and s3://{}/{}'.format(numkeys, self.bucket, sfolder, self.bucket, efolder ))
         print('{} records from read and written to {} files in {} min'.format(numrecs, filenum, (t1-t0)/60))
+        if self.zip and self.file_names:
+            self.zip_files(fp_params)
         if self.file_names:
             print('Output files:\n{}'.format('\n'.join(self.file_names)))
         print('============END============')
@@ -250,6 +261,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_convention', default='{pilot}_{message_type}_{sdate}_{edate}', help="Supply string for naming convention of output file. Variables available for use in this string include: pilot, messate_type, sdate, edate. Note that a file number will always be appended to the output file name. Default: {pilot}_{message_type}_{sdate}_{edate}")
     parser.add_argument('--json', default=False, action='store_true', help="Supply flag if file is to be exported as newline json instead of CSV file. Default: False")
     parser.add_argument('--aws_profile', default='default', help="Supply name of AWS profile if not using default profile. AWS profile must be configured in ~/.aws/credentials on your machine. See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file for more information.")
+    parser.add_argument('--zip', default=False, action='store_true', help="Supply flag if output files should be zipped together. Default: False")
     args = parser.parse_args()
 
     exporter = SandboxExporter(
@@ -258,6 +270,8 @@ if __name__ == '__main__':
         message_type=args.message_type,
         sdate=args.sdate,
         edate=args.edate,
+        output_convention=args.output_convention,
         csv=bool(not args.json),
-        output_convention=args.output_convention)
+        aws_profile=args.aws_profile,
+        zip=args.zip)
     exporter.run()

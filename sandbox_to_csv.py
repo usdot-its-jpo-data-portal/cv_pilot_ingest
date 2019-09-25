@@ -39,6 +39,7 @@ from copy import copy
 import dateutil.parser
 from datetime import datetime, timedelta
 import json
+import os
 import pandas as pd
 import threading
 import time
@@ -156,7 +157,9 @@ class SandboxExporter(object):
         with zipfile.ZipFile(outfp, 'w') as outzip:
             for fp in self.file_names:
                 outzip.write(fp, compress_type=zipfile.ZIP_DEFLATED)
+                os.remove(fp)
         print('Output zip file containing {} files at:\n{}'.format(len(self.file_names), outfp))
+
 
     def process(self, key):
         s3botoclient = boto3.client('s3', **s3_credentials)
@@ -233,7 +236,7 @@ class SandboxExporter(object):
         print('{} records from read and written to {} files in {} min'.format(numrecs, filenum, (t1-t0)/60))
         if self.zip and self.file_names:
             self.zip_files(fp_params)
-        if self.file_names:
+        elif self.file_names:
             print('Output files:\n{}'.format('\n'.join(self.file_names)))
         print('============END============')
         return

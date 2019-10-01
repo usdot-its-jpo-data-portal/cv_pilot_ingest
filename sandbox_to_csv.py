@@ -41,6 +41,7 @@ from botocore.exceptions import ProfileNotFound
 from copy import copy
 import dateutil.parser
 from datetime import datetime, timedelta
+from functools import reduce
 import json
 import os
 import csv
@@ -52,27 +53,6 @@ import zipfile
 
 from flattener import load_flattener
 from s3_file_mover import CvPilotFileMover
-
-
-# We highly suggest that the AWS credentials to be configured in the
-# ~/.aws/credentials file. Instructions on how to do so can be found
-# at https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file
-
-# Alternatively, if you cannot configure credentials in a shared credentials file,
-# nor save it in the environment variable, you can comment out line 37 which
-# sets the s3_credentials variable to a empty dictionary and fill out the
-# s3_credentials dictionary below with your own credentials.
-# If you choose this method, please be careful when sharing the file so that you
-# don't accidentally expose your AWS credentials.
-
-# s3_credentials = {
-#     'aws_access_key_id': None,
-#     'aws_secret_access_key': None,
-#     'aws_session_token': None,
-#     'region_name': None
-# }
-
-s3_credentials = {}
 
 
 class SandboxExporter(object):
@@ -117,13 +97,10 @@ class SandboxExporter(object):
         try:
             session = boto3.session.Session(profile_name=self.aws_profile)
         except ProfileNotFound:
-            if not s3_credentials.get('aws_access_key_id'):
-                print('Please supply a valid AWS profile name (preferred) or provide s3 credentials.')
-                exit()
-            else:
-                session = boto3.session.Session(**s3_credentials)
+            print('Please supply a valid AWS profile name.')
+            exit()
         except:
-            print('Please supply a valid AWS profile name (preferred) or provide s3 credentials.')
+            print(traceback.format_exc())
         return session
 
     def get_folder_prefix(self, dt):
@@ -144,8 +121,8 @@ class SandboxExporter(object):
             flat_recs += self.flattener.process_and_split(r)
 
         with open(fp, mode='w') as csv_file:
-            fieldnames = reduce(lambda x, y: set(list(x)+list(y)), flat_recs)
-            csvWriter = csv.DictWriter(csv_file, fieldnames=fieldNames)
+            field_names = reduce(lambda x, y: set(list(x)+list(y)), flat_recs)
+            writer = csv.DictWriter(csv_file, fieldnames=field_names)
             writer.writeheader()
             for flat_rec in flat_recs:
                 writer.writerow(flat_rec)
@@ -170,17 +147,10 @@ class SandboxExporter(object):
 
 
     def process(self, key):
-        s3botoclient = boto3.client('s3', **s3_credentials)
-        mover = CvPilotFileMover(target_bucket=self.bucket,
-                                 source_bucket_prefix="",
-                                 source_key_prefix="",
-                                 validation_queue_name=None,
-                                 log=False,
-                                 s3_client=s3botoclient)
         sb,sk = key
-        stream = mover.get_data_stream(sb, sk)
+        stream = self.mover.get_data_stream(sb, sk)
         recs = []
-        for r in mover.newline_json_rec_generator(stream):
+        for r in self.mover.newline_json_rec_generator(stream):
             if self.csv:
                 recs += self.flattener.process_and_split(r)
             else:
@@ -241,7 +211,7 @@ class SandboxExporter(object):
         t1 = time.time()
         print('===========================')
         print('{} keys retrieved between s3://{}/{} and s3://{}/{}'.format(numkeys, self.bucket, sfolder, self.bucket, efolder ))
-        print('{} records from read and written to {} files in {} min'.format(numrecs, filenum, (t1-t0)/60))
+        print('{} records read and written to {} files in {} min'.format(numrecs, filenum, (t1-t0)/60))
         if self.zip and self.file_names:
             self.zip_files(fp_params)
         elif self.file_names:

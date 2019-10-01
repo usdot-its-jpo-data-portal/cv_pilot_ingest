@@ -35,6 +35,7 @@ optional arguments:
                         Default: False
 
 """
+from __future__ import print_function
 from argparse import ArgumentParser
 import boto3
 from botocore.exceptions import ProfileNotFound
@@ -156,7 +157,6 @@ class SandboxExporter(object):
             else:
                 recs.append(r)
         self.current_recs += recs
-        print('.', end='', flush=True)
         return
 
     def run(self):
@@ -169,7 +169,7 @@ class SandboxExporter(object):
             'sdate': self.sdate.strftime('%Y%m%d%H'),
             'edate': self.edate.strftime('%Y%m%d%H')
         }
-        fp = lambda filenum: (self.output_convention+'_{filenum}').format(**fp_params, filenum=filenum)
+        fp = lambda filenum: (self.output_convention+'_{filenum}').format(filenum=filenum, **fp_params)
         sfolder = self.get_folder_prefix(self.sdate)
         efolder = self.get_folder_prefix(self.edate)
 

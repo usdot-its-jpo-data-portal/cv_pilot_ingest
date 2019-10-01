@@ -12,6 +12,7 @@ import traceback
 
 from s3_file_mover import CvPilotFileMover
 from socrata_util import SocrataDataset
+from flattener import load_flattener
 
 
 logger = logging.getLogger()
@@ -38,20 +39,6 @@ domain = SOCRATA_DOMAIN
 )
 
 skip_time_ms = 60*1000
-
-def load_flattener(key):
-    '''
-    Load appropriate data flattener based on pilot site and message type
-    '''
-    pilot, message_type = key.split('/')[:2]
-    try:
-        mod = __import__('flattener_{}'.format(pilot))
-        flattener = getattr(mod, '{}{}Flattener'.format(pilot.title(), message_type))
-    except:
-        print('flattener_{}.{}{}Flattener not found. Load generic CVP flattener.'.format(pilot, message_type))
-        mod = __import__('flattener')
-        flattener = getattr(mod, 'CvDataFlattener')
-    return flattener
 
 
 def lambda_handler(event, context):

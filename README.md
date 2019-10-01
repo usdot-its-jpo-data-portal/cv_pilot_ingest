@@ -64,7 +64,9 @@ Example Usage:
 `python -u sandbox_to_csv.py --pilot thea --message_type tim --sdate 2019-09-16 --edate 2019-09-18 --json`
 
 #### Configuration
-The applications requires [Python 3.x](https://www.python.org/download/releases/3.0/) and the packages listed in the requirements.txt file.
+The applications requires [Python 2.7](https://www.python.org/download/releases/2.7/) or [Python 3.x](https://www.python.org/download/releases/3.0/) and the packages listed in the requirements.txt file.
+
+This application also requires that you have access to the command line of a machine. If you're using a Mac, the command line can be accessed via the [Terminal](https://support.apple.com/guide/terminal/welcome/mac), which comes with Mac OS. If you're using a PC, the command line can be accessed via the Command Prompt, which comes with Windows, or via [Cygwin64](https://www.cygwin.com/), a suite of open source tools that allow you to run something similar to Linux on Windows.
 
 ##### Prerequisites for using Sandbox Exporter
 
@@ -80,7 +82,7 @@ The applications requires [Python 3.x](https://www.python.org/download/releases/
 
 	- Record the Access Key ID and Secret Access Key ID (you will need them in step 4)
 
-3) Have access to Python 3.6+. You can check your python version by entering `python --version` and `python3 --version` in command line.
+3) Have access to Python 2.7 or Python 3.6+. You can check your python version by entering `python --version` and `python3 --version` in command line.
 
 4) Save your AWS credentials in your local machine, using one of the following method:
 	- shared credentials file: instructions at https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file.
@@ -95,9 +97,9 @@ The applications requires [Python 3.x](https://www.python.org/download/releases/
 3. Install the required packages by running `pip install -r requirements.txt`.
 
 #### File Manifest
-- Python 3.x : https://www.python.org/download/releases/3.0
+- Python 2.7 or 3.x : https://www.python.org/download/releases/2.7/, https://www.python.org/download/releases/3.0
 - requests : https://pypi.org/project/requests/
-- pandas : https://pypi.org/project/pandas/
+- boto3 : https://boto3.amazonaws.com/v1/documentation/api/latest/index.html?id=docs_gateway
 
 #### Development setup
 
@@ -130,7 +132,6 @@ Run `python restructure_folder.py --help` for more info on each parameter.
 ## Contact information
 TBD
 
-
 ## Contributing
 1. Fork it (https://github.com/usdot-its-jpo-data-portal/cv_pilot_ingest/fork)
 2. Create your feature branch (git checkout -b feature/fooBar)
@@ -149,6 +150,6 @@ Thank you to the Department of Transportation for funding to develop this projec
 * __Short Description:__ Utilities to work with ITS Sandbox and code for CV pilot data ingestion pipeline.
 * __Status:__ Beta
 * __Tags:__ transportation, connected vehicles, intelligent transportation systems, python, ITS Sandbox, Socrata
-* __Labor Hours:__
-* __Contact Name:__
-* __Contact Phone:__
+* __Labor Hours:__ 0
+* __Contact Name:__ Brian Brotsos
+* __Contact Phone:__ 202-366-9013

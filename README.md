@@ -20,7 +20,7 @@ This utility can be used to download data generated between a specified date ran
                          [--message_type MESSAGE_TYPE] --sdate SDATE
                          [--edate EDATE]
                          [--output_convention OUTPUT_CONVENTION] [--json]
-                         [--aws_profile AWS_PROFILE] [--zip]
+                         [--aws_profile AWS_PROFILE] [--zip] [--log]
 `
 
 ```
@@ -53,6 +53,8 @@ optional arguments:
                         information.
   --zip                 Supply flag if output files should be zipped together.
                         Default: False
+  --log                 Supply flag if script progress should be logged and
+                        not printed to the console. Default: False
 ```
 
 Example Usage:
@@ -87,7 +89,6 @@ This application also requires that you have access to the command line of a mac
 4) Save your AWS credentials in your local machine, using one of the following method:
 	- shared credentials file: instructions at https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file.
 	- environmental variables: instructions at https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#environment-variables
-	- (not preferred) hardcoding credentials in the script: instructions in lines 52-61 of `sandbox_to_csv.py`
 
 #### Installation
 

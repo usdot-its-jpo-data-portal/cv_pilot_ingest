@@ -33,7 +33,8 @@ optional arguments:
                         information.
   --zip                 Supply flag if output files should be zipped together.
                         Default: False
-
+  --log                 Supply flag if script progress should be logged and
+                        not printed to the console. Default: False
 """
 from __future__ import print_function
 from argparse import ArgumentParser
@@ -44,6 +45,7 @@ import dateutil.parser
 from datetime import datetime, timedelta
 from functools import reduce
 import json
+import logging
 import os
 import csv
 import threading
@@ -59,7 +61,7 @@ from s3_file_mover import CvPilotFileMover
 class SandboxExporter(object):
 
     def __init__(self, bucket='usdot-its-cvpilot-public-data', pilot='wydot',
-                message_type='bsm', sdate=None, edate=None, csv=True, zip=False,
+                message_type='bsm', sdate=None, edate=None, csv=True, zip=False, log=False,
                 output_convention='{pilot}_{message_type}_{sdate}_{edate}',
                 aws_profile="default"):
         # set up
@@ -72,6 +74,12 @@ class SandboxExporter(object):
         self.zip = zip
         self.output_convention = output_convention
         self.aws_profile = aws_profile
+        self.print_func = print
+        if log:
+            logging.basicConfig(filename='sandbox_to_csv.log', format='%(asctime)s %(message)s')
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+            self.print_func = logger.info
 
         if sdate:
             self.sdate = dateutil.parser.parse(sdate)
@@ -98,10 +106,10 @@ class SandboxExporter(object):
         try:
             session = boto3.session.Session(profile_name=self.aws_profile)
         except ProfileNotFound:
-            print('Please supply a valid AWS profile name.')
+            self.print_func('Please supply a valid AWS profile name.')
             exit()
         except:
-            print(traceback.format_exc())
+            self.print_func(traceback.format_exc())
         return session
 
     def get_folder_prefix(self, dt):
@@ -136,7 +144,7 @@ class SandboxExporter(object):
         else:
             ext = '.txt'
             self.write_json_newline(recs, fp+ext)
-        print('Wrote {} recs to {}'.format(len(recs), fp+ext ))
+        self.print_func('Wrote {} recs to {}'.format(len(recs), fp+ext ))
 
     def zip_files(self, fp_params):
         outfp = (self.output_convention+'.zip').format(**fp_params)
@@ -144,7 +152,7 @@ class SandboxExporter(object):
             for fp in self.file_names:
                 outzip.write(fp, compress_type=zipfile.ZIP_DEFLATED)
                 os.remove(fp)
-        print('Output zip file containing {} files at:\n{}'.format(len(self.file_names), outfp))
+        self.print_func('Output zip file containing {} files at:\n{}'.format(len(self.file_names), outfp))
 
 
     def process(self, key):
@@ -160,8 +168,8 @@ class SandboxExporter(object):
         return
 
     def run(self):
-        print('===========START===========')
-        print('Exporting {} {} data between {} and {}'.format(self.pilot, self.message_type, self.sdate, self.edate))
+        self.print_func('===========START===========')
+        self.print_func('Exporting {} {} data between {} and {}'.format(self.pilot, self.message_type, self.sdate, self.edate))
         t0 = time.time()
         fp_params = {
             'pilot': self.pilot,
@@ -182,17 +190,11 @@ class SandboxExporter(object):
             threads = []
             keys = self.mover.get_fps_from_prefix(self.bucket, curr_folder)
             if len(keys) > 0:
-                print('Processing {} keys from {}'.format(len(keys), curr_folder))
+                self.print_func('Processing {} keys from {}'.format(len(keys), curr_folder))
             for key in keys:
                 self.process(key)
-                # t = threading.Thread(target = self.process, args=(key,))
-                # threads.append(t)
-                # t.start()
-            # if threads:
-                # print('Waiting on {} threads'.format(len(threads)))
-                # results = [t.join() for t in threads]
             if len(keys) > 0:
-                print('{} recs processed from {}'.format(len(self.current_recs), curr_folder))
+                self.print_func('{} recs processed from {}'.format(len(self.current_recs), curr_folder))
 
             numkeys += len(keys)
             curr_dt += timedelta(hours=1)
@@ -209,14 +211,14 @@ class SandboxExporter(object):
             numrecs += len(self.current_recs)
             filenum += 1
         t1 = time.time()
-        print('===========================')
-        print('{} keys retrieved between s3://{}/{} and s3://{}/{}'.format(numkeys, self.bucket, sfolder, self.bucket, efolder ))
-        print('{} records read and written to {} files in {} min'.format(numrecs, filenum, (t1-t0)/60))
+        self.print_func('===========================')
+        self.print_func('{} keys retrieved between s3://{}/{} and s3://{}/{}'.format(numkeys, self.bucket, sfolder, self.bucket, efolder ))
+        self.print_func('{} records read and written to {} files in {} min'.format(numrecs, filenum, (t1-t0)/60))
         if self.zip and self.file_names:
             self.zip_files(fp_params)
         elif self.file_names:
-            print('Output files:\n{}'.format('\n'.join(self.file_names)))
-        print('============END============')
+            self.print_func('Output files:\n{}'.format('\n'.join(self.file_names)))
+        self.print_func('============END============')
         return
 
 
@@ -243,6 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--json', default=False, action='store_true', help="Supply flag if file is to be exported as newline json instead of CSV file. Default: False")
     parser.add_argument('--aws_profile', default='default', help="Supply name of AWS profile if not using default profile. AWS profile must be configured in ~/.aws/credentials on your machine. See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#shared-credentials-file for more information.")
     parser.add_argument('--zip', default=False, action='store_true', help="Supply flag if output files should be zipped together. Default: False")
+    parser.add_argument('--log', default=False, action='store_true', help="Supply flag if script progress should be logged and not printed to the console. Default: False")
     args = parser.parse_args()
 
     exporter = SandboxExporter(
@@ -254,5 +257,6 @@ if __name__ == '__main__':
         output_convention=args.output_convention,
         csv=bool(not args.json),
         aws_profile=args.aws_profile,
-        zip=args.zip)
+        zip=args.zip,
+        log=args.log)
     exporter.run()

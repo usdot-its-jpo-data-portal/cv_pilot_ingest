@@ -43,7 +43,7 @@ import dateutil.parser
 from datetime import datetime, timedelta
 import json
 import os
-import pandas as pd
+import csv
 import threading
 import time
 import traceback
@@ -142,8 +142,13 @@ class SandboxExporter(object):
         flat_recs = []
         for r in recs:
             flat_recs += self.flattener.process_and_split(r)
-        df = pd.DataFrame(flat_recs)
-        df.to_csv(fp, index=False, encoding='utf-8')
+
+        with open(fp, mode='w') as csv_file:
+            fieldnames = reduce(lambda x, y: set(list(x)+list(y)), flat_recs)
+            csvWriter = csv.DictWriter(csv_file, fieldnames=fieldNames)
+            writer.writeheader()
+            for flat_rec in flat_recs:
+                writer.writerow(flat_rec)
         self.file_names.append(fp)
 
     def write(self, recs, fp):

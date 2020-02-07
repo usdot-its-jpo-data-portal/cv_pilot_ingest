@@ -131,7 +131,8 @@ Run `python restructure_folder.py --help` for more info on each parameter.
 
 
 ## Contact information
-TBD
+ITS DataHub Team: data.itsjpo@dot.gov
+Distributed under Apache 2.0 License. See *LICENSE* for more information.
 
 ## Contributing
 1. Fork it (https://github.com/usdot-its-jpo-data-portal/cv_pilot_ingest/fork)

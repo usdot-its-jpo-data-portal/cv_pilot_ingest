@@ -110,15 +110,17 @@ class S3FileMover(object):
 
 class CvPilotFileMover(S3FileMover):
 
-    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, validation_queue_name=None, *args, **kwargs):
+    def __init__(self, source_bucket_prefix='usdot-its-datahub-', source_key_prefix=None, validation_queue_names=[], *args, **kwargs):
         super(CvPilotFileMover, self).__init__(*args, **kwargs)
         self.source_bucket_prefix = source_bucket_prefix
         self.source_key_prefix = source_key_prefix or ''
-        self.queue = None
+        self.queues = []
 
-        if validation_queue_name:
-            sqs = boto3.resource('sqs')
-            self.queue = sqs.get_queue_by_name(QueueName=validation_queue_name)
+        if validation_queue_names:
+            for validation_queue_name in validation_queue_names:
+                sqs = boto3.resource('sqs')
+                queue = sqs.get_queue_by_name(QueueName=validation_queue_name)
+                self.queues.append(queue)
 
     def generate_outfp(self, ymdh_data_dict, source_bucket, source_key):
         if not ymdh_data_dict:
@@ -205,14 +207,15 @@ class CvPilotFileMover(S3FileMover):
             self.print_func('Writing {} records from \n{} -> \n{}'.format(len(recs), source_path, target_path))
             self.write_recs(recs, self.target_bucket, target_key)
             self.print_func('File written')
-            if self.queue and pilot_name == 'wydot':
-                msg = {
-                'bucket': self.target_bucket,
-                'key': target_key,
-                'pilot_name': pilot_name,
-                'message_type': message_type.lower()
-                }
-                self.queue.send_message(MessageBody=json.dumps(msg))
+            if self.queues:
+                for queue in self.queues:
+                    msg = {
+                    'bucket': self.target_bucket,
+                    'key': target_key,
+                    'pilot_name': pilot_name,
+                    'message_type': message_type.lower()
+                    }
+                    queue.send_message(MessageBody=json.dumps(msg))
 
         if len(self.err_lines) > 0:
             self.print_func('{} lines not read in file. Keep file at: {}'.format(len(self.err_lines), source_path))

@@ -115,6 +115,8 @@ class CvPilotFileMover(S3FileMover):
         self.source_bucket_prefix = source_bucket_prefix
         self.source_key_prefix = source_key_prefix or ''
         self.queues = []
+        self.pilot_name = None
+        self.message_type = None
 
         if validation_queue_names:
             for validation_queue_name in validation_queue_names:
@@ -162,6 +164,9 @@ class CvPilotFileMover(S3FileMover):
             target_prefix = os.path.join(pilot_name, message_type, y, m, d, h)
             target_key = os.path.join(target_prefix, target_filename)
             return target_key
+
+        self.pilot_name  = pilot_name
+        self.message_type = message_type
 
         return outfp_func
 
@@ -212,8 +217,8 @@ class CvPilotFileMover(S3FileMover):
                     msg = {
                     'bucket': self.target_bucket,
                     'key': target_key,
-                    'pilot_name': pilot_name,
-                    'message_type': message_type.lower()
+                    'pilot_name': self.pilot_name,
+                    'message_type': self.message_type.lower()
                     }
                     queue.send_message(MessageBody=json.dumps(msg))
 
